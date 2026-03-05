@@ -102,3 +102,4 @@ habitus/
 - All visuals are rendered with pure HTML5 + CSS3
 - AI suggestions require an internet connection
 - The API key is only held in memory for the current session and is never stored
+- site -https://roaring-fairy-980c4d.netlify.app/

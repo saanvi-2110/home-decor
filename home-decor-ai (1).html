@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HABITUS — AI Interior Design Studio</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400;500&family=Playfair+Display:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #F5F0E8;
+    --warm-white: #FAF8F4;
+    --charcoal: #1C1C1C;
+    --deep: #0E0E0E;
+    --gold: #C9A84C;
+    --gold-light: #E8D08A;
+    --terracotta: #C4622D;
+    --sage: #7A8C6E;
+    --dust: #B8A99A;
+    --slate: #4A5568;
+    --panel: rgba(28,28,28,0.96);
+    --glass: rgba(245,240,232,0.08);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Mono', monospace;
+    background: var(--deep);
+    color: var(--cream);
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: crosshair;
+  }
+
+  /* ── HEADER ── */
+  header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 40px;
+    background: rgba(14,14,14,0.92);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(201,168,76,0.2);
+  }
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 26px; font-weight: 300; letter-spacing: 8px;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .logo span { font-style: italic; color: var(--cream); }
+  .header-tag {
+    font-size: 10px; letter-spacing: 3px; color: var(--dust);
+    text-transform: uppercase; opacity: 0.7;
+  }
+  .ai-badge {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 10px; letter-spacing: 2px; color: var(--gold);
+    text-transform: uppercase;
+    border: 1px solid rgba(201,168,76,0.4);
+    padding: 6px 14px; border-radius: 2px;
+  }
+  .ai-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.7); }
+  }
+
+  /* ── MAIN LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 280px 1fr 320px;
+    grid-template-rows: 100vh;
+    padding-top: 65px;
+  }
+
+  /* ── LEFT PANEL ── */
+  .left-panel {
+    background: var(--panel);
+    border-right: 1px solid rgba(201,168,76,0.15);
+    overflow-y: auto; padding: 30px 0;
+    scrollbar-width: thin; scrollbar-color: var(--gold) transparent;
+  }
+  .panel-section { padding: 0 24px 28px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 4px; }
+  .section-label {
+    font-size: 9px; letter-spacing: 4px; color: var(--gold);
+    text-transform: uppercase; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after { content:''; flex:1; height:1px; background: rgba(201,168,76,0.2); }
+
+  /* Wall Colors */
+  .color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .color-swatch {
+    aspect-ratio: 1; border-radius: 3px; cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative; border: 2px solid transparent;
+  }
+  .color-swatch:hover { transform: scale(1.12); }
+  .color-swatch.active { border-color: var(--gold); box-shadow: 0 0 12px rgba(201,168,76,0.5); }
+  .color-swatch::after {
+    content: attr(data-name);
+    position: absolute; bottom: -20px; left: 50%; transform: translateX(-50%);
+    font-size: 8px; white-space: nowrap; color: var(--dust); opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .color-swatch:hover::after { opacity: 1; }
+
+  /* Furniture Items */
+  .furniture-list { display: flex; flex-direction: column; gap: 8px; }
+  .furniture-item {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: 4px;
+    background: rgba(255,255,255,0.03);
+    cursor: pointer; transition: all 0.2s;
+    border: 1px solid transparent;
+    user-select: none;
+  }
+  .furniture-item:hover { background: rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.2); }
+  .furniture-item.dragging-source { opacity: 0.5; }
+  .furniture-item.placed { border-color: rgba(122,140,110,0.4); background: rgba(122,140,110,0.06); }
+  .furn-icon { font-size: 22px; width: 32px; text-align: center; }
+  .furn-info { flex: 1; }
+  .furn-name { font-size: 11px; color: var(--cream); letter-spacing: 1px; }
+  .furn-sub { font-size: 9px; color: var(--dust); margin-top: 2px; letter-spacing: 1px; }
+  .furn-action {
+    font-size: 9px; color: var(--gold); letter-spacing: 1px;
+    opacity: 0; transition: opacity 0.2s;
+  }
+  .furniture-item:hover .furn-action { opacity: 1; }
+
+  /* Style Selector */
+  .style-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .style-chip {
+    font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+    padding: 6px 12px; border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 2px; cursor: pointer; transition: all 0.2s;
+    color: var(--dust);
+  }
+  .style-chip:hover { border-color: var(--gold); color: var(--gold); }
+  .style-chip.active { background: var(--gold); color: var(--deep); border-color: var(--gold); }
+
+  /* ── ROOM CANVAS ── */
+  .room-wrap {
+    position: relative; background: #1a1614;
+    overflow: hidden; display: flex; align-items: center; justify-content: center;
+  }
+
+  .room {
+    position: relative;
+    width: 680px; height: 500px;
+    perspective: 800px;
+    transform-style: preserve-3d;
+  }
+
+  /* 3D Room walls */
+  .room-back {
+    position: absolute; inset: 0;
+    background: var(--room-color, #D4C5B0);
+    transition: background 0.6s cubic-bezier(0.4,0,0.2,1);
+    border-radius: 2px;
+  }
+  .room-back::before {
+    content:'';
+    position: absolute; inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(0,0,0,0.15) 100%);
+    pointer-events: none;
+  }
+
+  /* Floor */
+  .room-floor {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 38%;
+    background: var(--floor-color, #8B6F47);
+    transition: background 0.6s ease;
+    transform-origin: bottom;
+  }
+  .room-floor::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: repeating-linear-gradient(
+      90deg,
+      rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px,
+      transparent 1px, transparent 60px
+    ),
+    repeating-linear-gradient(
+      0deg,
+      rgba(0,0,0,0.04) 0px, rgba(0,0,0,0.04) 1px,
+      transparent 1px, transparent 60px
+    );
+  }
+
+  /* Room ceiling line */
+  .room-ceiling {
+    position: absolute; top: 0; left: 0; right: 0; height: 8px;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.3), transparent);
+  }
+
+  /* Baseboard */
+  .room-baseboard {
+    position: absolute; bottom: 38%; left: 0; right: 0; height: 14px;
+    background: rgba(255,255,255,0.85);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Window */
+  .room-window {
+    position: absolute; top: 60px; right: 80px;
+    width: 100px; height: 130px;
+    background: linear-gradient(160deg, #AED9E0, #87CEEB, #C8E6C9);
+    border: 6px solid rgba(255,255,255,0.9);
+    box-shadow: 0 0 30px rgba(174,217,224,0.4), inset 0 0 20px rgba(255,255,255,0.3);
+    border-radius: 2px;
+  }
+  .room-window::before {
+    content:''; position: absolute; top: 50%; left: 0; right: 0; height: 2px;
+    background: rgba(255,255,255,0.8);
+  }
+  .room-window::after {
+    content:''; position: absolute; left: 50%; top: 0; bottom: 0; width: 2px;
+    background: rgba(255,255,255,0.8);
+  }
+
+  /* Light from window */
+  .room-light {
+    position: absolute; top: 60px; right: 0;
+    width: 300px; height: 400px;
+    background: radial-gradient(ellipse at top right, rgba(255,240,200,0.12), transparent 70%);
+    pointer-events: none;
+  }
+
+  /* Drop zone */
+  .drop-zone {
+    position: absolute; bottom: 38%; left: 0; right: 0; height: 62%;
+    z-index: 5;
+  }
+  .drop-zone.drag-over::after {
+    content: 'DROP TO PLACE';
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; letter-spacing: 4px; color: var(--gold);
+    border: 2px dashed rgba(201,168,76,0.5);
+    background: rgba(201,168,76,0.05);
+    pointer-events: none;
+  }
+
+  /* Placed furniture pieces */
+  .placed-piece {
+    position: absolute;
+    cursor: grab;
+    transition: filter 0.2s, transform 0.15s;
+    user-select: none;
+    z-index: 10;
+    font-size: 48px;
+    filter: drop-shadow(0 8px 16px rgba(0,0,0,0.4));
+    animation: placeIn 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes placeIn {
+    from { transform: scale(0.4) translateY(-20px); opacity: 0; }
+    to { transform: scale(1) translateY(0); opacity: 1; }
+  }
+  .placed-piece:hover { filter: drop-shadow(0 8px 24px rgba(201,168,76,0.5)); transform: scale(1.05); }
+  .placed-piece:active { cursor: grabbing; }
+  .placed-piece .remove-btn {
+    position: absolute; top: -12px; right: -12px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--terracotta); color: white;
+    font-size: 12px; display: flex; align-items: center; justify-content: center;
+    opacity: 0; transition: opacity 0.2s; cursor: pointer;
+    border: none; font-family: monospace; line-height: 1;
+  }
+  .placed-piece:hover .remove-btn { opacity: 1; }
+
+  /* Room label */
+  .room-label {
+    position: absolute; bottom: 16px; left: 20px;
+    font-size: 9px; letter-spacing: 3px; color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+  }
+
+  /* Toast notification */
+  .toast {
+    position: fixed; bottom: 30px; left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: var(--deep); border: 1px solid var(--gold);
+    color: var(--cream); padding: 12px 24px;
+    font-size: 10px; letter-spacing: 2px; text-transform: uppercase;
+    border-radius: 2px; z-index: 999;
+    transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── RIGHT PANEL ── */
+  .right-panel {
+    background: var(--panel);
+    border-left: 1px solid rgba(201,168,76,0.15);
+    overflow-y: auto; padding: 30px 0;
+    scrollbar-width: thin; scrollbar-color: var(--gold) transparent;
+    display: flex; flex-direction: column;
+  }
+
+  /* AI Input */
+  .ai-input-wrap { padding: 0 24px 28px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+  .ai-prompt-area {
+    width: 100%;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(201,168,76,0.2);
+    color: var(--cream); padding: 14px;
+    font-family: 'DM Mono', monospace; font-size: 11px;
+    resize: none; height: 90px; border-radius: 3px;
+    transition: border-color 0.2s;
+    letter-spacing: 0.5px; line-height: 1.6;
+  }
+  .ai-prompt-area:focus { outline: none; border-color: var(--gold); }
+  .ai-prompt-area::placeholder { color: var(--dust); opacity: 0.5; }
+
+  .btn-ai {
+    width: 100%; margin-top: 12px;
+    background: var(--gold); color: var(--deep);
+    border: none; padding: 13px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 3px; text-transform: uppercase;
+    cursor: pointer; border-radius: 2px;
+    transition: all 0.2s; font-weight: 500;
+    position: relative; overflow: hidden;
+  }
+  .btn-ai:hover { background: var(--gold-light); transform: translateY(-1px); }
+  .btn-ai:active { transform: translateY(0); }
+  .btn-ai:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .btn-ai .loading-bar {
+    position: absolute; bottom: 0; left: 0; height: 2px;
+    background: var(--deep); opacity: 0.4;
+    width: 0%; transition: none;
+  }
+
+  /* Quick prompts */
+  .quick-prompts { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .qprompt {
+    font-size: 8px; letter-spacing: 1.5px; padding: 5px 10px;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 2px;
+    color: var(--dust); cursor: pointer; transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .qprompt:hover { border-color: var(--gold); color: var(--gold); }
+
+  /* AI Results */
+  .ai-results-wrap { padding: 0 24px; flex: 1; }
+  .results-status {
+    font-size: 9px; letter-spacing: 2px; color: var(--dust);
+    text-transform: uppercase; margin-bottom: 16px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .ai-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(201,168,76,0.15);
+    border-radius: 4px; padding: 16px; margin-bottom: 12px;
+    cursor: pointer; transition: all 0.25s;
+    animation: cardIn 0.4s ease forwards;
+    opacity: 0; transform: translateY(12px);
+  }
+  .ai-card:nth-child(1) { animation-delay: 0.05s; }
+  .ai-card:nth-child(2) { animation-delay: 0.12s; }
+  .ai-card:nth-child(3) { animation-delay: 0.19s; }
+  .ai-card:nth-child(4) { animation-delay: 0.26s; }
+  .ai-card:nth-child(5) { animation-delay: 0.33s; }
+  @keyframes cardIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ai-card:hover { border-color: var(--gold); background: rgba(201,168,76,0.06); transform: translateX(3px); }
+  .ai-card-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .ai-card-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 16px; font-weight: 400; color: var(--cream);
+    letter-spacing: 1px; line-height: 1.2;
+  }
+  .ai-card-num {
+    font-size: 9px; color: var(--gold); letter-spacing: 2px;
+    opacity: 0.7; margin-top: 2px;
+  }
+  .ai-card-desc {
+    font-size: 10px; color: var(--dust); line-height: 1.7;
+    letter-spacing: 0.5px;
+  }
+  .ai-card-tags { display: flex; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+  .ai-tag {
+    font-size: 8px; letter-spacing: 1.5px; padding: 3px 8px;
+    border-radius: 1px; text-transform: uppercase;
+  }
+  .ai-tag.wall { background: rgba(201,168,76,0.15); color: var(--gold-light); }
+  .ai-tag.furn { background: rgba(122,140,110,0.15); color: #A8C49A; }
+  .ai-tag.mood { background: rgba(196,98,45,0.15); color: #E8956A; }
+
+  .apply-btn {
+    display: block; width: 100%; margin-top: 12px;
+    background: transparent; border: 1px solid rgba(201,168,76,0.3);
+    color: var(--gold); padding: 8px;
+    font-family: 'DM Mono', monospace; font-size: 9px;
+    letter-spacing: 2px; text-transform: uppercase;
+    cursor: pointer; border-radius: 2px; transition: all 0.2s;
+  }
+  .apply-btn:hover { background: var(--gold); color: var(--deep); }
+
+  /* Floor selector */
+  .floor-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .floor-swatch {
+    aspect-ratio: 2; border-radius: 3px; cursor: pointer;
+    transition: all 0.2s; position: relative;
+    border: 2px solid transparent;
+    display: flex; align-items: flex-end; padding: 4px 6px;
+  }
+  .floor-swatch:hover { transform: scale(1.05); }
+  .floor-swatch.active { border-color: var(--gold); }
+  .floor-swatch span {
+    font-size: 8px; letter-spacing: 1px; color: rgba(255,255,255,0.7);
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  }
+
+  /* Thinking animation */
+  .thinking {
+    display: flex; gap: 5px; align-items: center;
+    padding: 20px 0;
+  }
+  .thinking span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--gold); animation: think 1.2s infinite;
+  }
+  .thinking span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes think {
+    0%,80%,100% { transform: scale(0.6); opacity: 0.3; }
+    40% { transform: scale(1.2); opacity: 1; }
+  }
+  .thinking-label {
+    font-size: 9px; letter-spacing: 2px; color: var(--dust); margin-left: 8px;
+    text-transform: uppercase;
+  }
+
+  /* Error state */
+  .error-msg {
+    font-size: 10px; color: var(--terracotta); line-height: 1.6;
+    padding: 14px; border: 1px solid rgba(196,98,45,0.3);
+    border-radius: 3px; background: rgba(196,98,45,0.05);
+    letter-spacing: 0.5px;
+  }
+
+
+
+  /* Room stats */
+  .room-stats {
+    position: absolute; top: 12px; left: 20px; z-index: 20;
+    display: flex; gap: 16px;
+  }
+  .stat {
+    font-size: 9px; letter-spacing: 2px; color: rgba(255,255,255,0.4);
+    text-transform: uppercase;
+  }
+  .stat strong { color: rgba(255,255,255,0.7); margin-left: 5px; }
+
+  /* Rug overlay */
+  .room-rug {
+    position: absolute; bottom: 40%; left: 50%; transform: translateX(-50%);
+    width: 280px; height: 140px; border-radius: 4px;
+    opacity: 0.7; pointer-events: none; z-index: 6;
+    transition: background 0.5s;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 3px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 2px; }
+
+  /* Ambient glow on room */
+  .ambient {
+    position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 30%, rgba(255,240,200,0.06), transparent 60%);
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center; padding: 40px 20px; color: var(--dust);
+  }
+  .empty-state .icon { font-size: 36px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-state p { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; line-height: 1.8; }
+
+  /* Responsive tweaks */
+  @media (max-width: 1200px) {
+    .app { grid-template-columns: 240px 1fr 280px; }
+  }
+
+  /* ── API KEY MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 999;
+    background: rgba(0,0,0,0.75); backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    animation: fadeIn 0.2s ease;
+  }
+  @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+  .modal-box {
+    background: #141210;
+    border: 1px solid rgba(201,168,76,0.35);
+    padding: 40px; width: 420px; border-radius: 4px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.6);
+    animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes slideUp { from { transform: translateY(24px); opacity:0; } to { transform: translateY(0); opacity:1; } }
+  .modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 22px; color: var(--gold); letter-spacing: 3px;
+    margin-bottom: 6px;
+  }
+  .modal-sub { font-size: 10px; color: var(--dust); letter-spacing: 2px; margin-bottom: 24px; line-height: 1.7; }
+  .modal-input {
+    width: 100%; background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(201,168,76,0.3);
+    color: var(--cream); padding: 13px 16px;
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    border-radius: 3px; letter-spacing: 1px;
+    transition: border-color 0.2s;
+  }
+  .modal-input:focus { outline: none; border-color: var(--gold); }
+  .modal-note { font-size: 8px; color: var(--dust); opacity: 0.6; margin-top: 8px; letter-spacing: 1px; }
+  .modal-btn {
+    width: 100%; margin-top: 18px;
+    background: var(--gold); color: var(--deep);
+    border: none; padding: 14px;
+    font-family: 'DM Mono', monospace; font-size: 10px;
+    letter-spacing: 3px; text-transform: uppercase;
+    cursor: pointer; border-radius: 2px;
+    transition: background 0.2s; font-weight: 500;
+  }
+  .modal-btn:hover { background: var(--gold-light); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">HAB<span>I</span>TUS</div>
+  <div class="header-tag">Interactive Interior Design Studio</div>
+  <div class="ai-badge"><div class="ai-dot"></div>AI — Powered</div>
+</header>
+
+<div class="app">
+
+  <!-- LEFT PANEL -->
+  <aside class="left-panel">
+
+    <div class="panel-section">
+      <div class="section-label">Wall Color</div>
+      <div class="color-grid" id="wallColors"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Floor Material</div>
+      <div class="floor-grid" id="floorSwatches"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Furniture</div>
+      <div class="furniture-list" id="furnitureList"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="section-label">Style Preference</div>
+      <div class="style-chips" id="styleChips"></div>
+    </div>
+
+  </aside>
+
+  <!-- ROOM CANVAS -->
+  <main class="room-wrap">
+    <div class="room" id="room">
+      <div class="room-back" id="roomBack"></div>
+      <div class="room-floor" id="roomFloor"></div>
+      <div class="room-ceiling"></div>
+      <div class="room-baseboard"></div>
+      <div class="room-window"></div>
+      <div class="room-light"></div>
+      <div class="room-rug" id="roomRug"></div>
+      <div class="ambient"></div>
+      <div class="drop-zone" id="dropZone"></div>
+      <div class="room-stats">
+        <div class="stat">Pieces<strong id="pieceCount">0</strong></div>
+        <div class="stat">Style<strong id="activeStyle">—</strong></div>
+      </div>
+      <div class="room-label">DESIGN STUDIO · HABITUS</div>
+    </div>
+  </main>
+
+  <!-- RIGHT PANEL -->
+  <aside class="right-panel">
+
+    <div class="panel-section ai-input-wrap">
+      <div class="section-label">AI Design Prompt</div>
+      <textarea class="ai-prompt-area" id="aiPrompt" placeholder="Describe your ideal space... e.g. 'cozy Scandinavian living room with warm neutral tones and natural materials'"></textarea>
+      <div class="quick-prompts">
+        <span class="qprompt" onclick="setPrompt('Modern minimalist with concrete and glass')">Minimalist</span>
+        <span class="qprompt" onclick="setPrompt('Warm Japandi style, natural wood and wabi-sabi')">Japandi</span>
+        <span class="qprompt" onclick="setPrompt('Art Deco glamour, velvet and gold accents')">Art Deco</span>
+        <span class="qprompt" onclick="setPrompt('Cozy Scandinavian hygge, soft textiles and candlelight')">Scandi</span>
+        <span class="qprompt" onclick="setPrompt('Bohemian eclectic with plants and layered textiles')">Boho</span>
+        <span class="qprompt" onclick="setPrompt('Industrial loft with exposed brick and metal')">Industrial</span>
+      </div>
+      <button class="btn-ai" id="generateBtn" onclick="generateSuggestions()">
+        ✦ Generate AI Suggestions
+        <div class="loading-bar" id="loadingBar"></div>
+      </button>
+    </div>
+
+    <div class="ai-results-wrap" id="aiResults">
+      <div class="empty-state">
+        <div class="icon">✦</div>
+        <p>Enter a prompt above<br>to receive curated<br>AI design concepts</p>
+      </div>
+    </div>
+
+  </aside>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="keyModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-title">API KEY</div>
+    <div class="modal-sub">Enter your AI API key to enable<br>design suggestions. Used only in this session.</div>
+    <input type="password" class="modal-input" id="modalKeyInput" placeholder="sk-ant-..." onkeydown="if(event.key==='Enter')saveKey()">
+    <div class="modal-note">Paste your API key above to get started.</div>
+    <button class="modal-btn" onclick="saveKey()">✦ Activate AI</button>
+  </div>
+</div>
+
+<script>
+// ── DATA ──────────────────────────────────────────────────────────────────────
+const WALL_COLORS = [
+  { hex:'#D4C5B0', name:'Linen' },    { hex:'#C8BBA8', name:'Sand' },
+  { hex:'#BDB5A6', name:'Stone' },    { hex:'#A8A090', name:'Slate' },
+  { hex:'#E8DDD0', name:'Cream' },    { hex:'#D6C4B8', name:'Blush' },
+  { hex:'#C4B8A4', name:'Taupe' },    { hex:'#B0A898', name:'Pebble' },
+  { hex:'#8FA68E', name:'Sage' },     { hex:'#7A9E8A', name:'Mint' },
+  { hex:'#6B8F71', name:'Fern' },     { hex:'#5C7A66', name:'Forest' },
+  { hex:'#A8B8C4', name:'Sky' },      { hex:'#8898AC', name:'Steel' },
+  { hex:'#6878A0', name:'Dusk' },     { hex:'#C4A882', name:'Wheat' },
+  { hex:'#B89068', name:'Camel' },    { hex:'#9A7858', name:'Hazel' },
+  { hex:'#E8C4B8', name:'Rose' },     { hex:'#D4A898', name:'Coral' },
+];
+
+const FLOOR_TYPES = [
+  { color:'#8B6F47', pattern:'repeating-linear-gradient(90deg,rgba(0,0,0,0.06) 0,rgba(0,0,0,0.06) 1px,transparent 1px,transparent 50px)', name:'Oak' },
+  { color:'#6B5A42', pattern:'repeating-linear-gradient(90deg,rgba(0,0,0,0.08) 0,rgba(0,0,0,0.08) 1px,transparent 1px,transparent 40px)', name:'Walnut' },
+  { color:'#C8B89A', pattern:'repeating-linear-gradient(90deg,rgba(255,255,255,0.1) 0,rgba(255,255,255,0.1) 1px,transparent 1px,transparent 30px)', name:'Birch' },
+  { color:'#A8A098', pattern:'none', name:'Marble' },
+  { color:'#78706A', pattern:'repeating-linear-gradient(45deg,rgba(0,0,0,0.05) 0,rgba(0,0,0,0.05) 2px,transparent 2px,transparent 20px)', name:'Slate' },
+  { color:'#9A8878', pattern:'none', name:'Cement' },
+];
+
+const FURNITURE = [
+  { id:'sofa',    icon:'🛋️', name:'Sofa',        sub:'Lounge seating',   size:'large'  },
+  { id:'chair',   icon:'🪑', name:'Armchair',    sub:'Accent chair',     size:'medium' },
+  { id:'table',   icon:'🪵', name:'Coffee Table',sub:'Center piece',     size:'medium' },
+  { id:'lamp',    icon:'💡', name:'Floor Lamp',  sub:'Ambient lighting', size:'small'  },
+  { id:'plant',   icon:'🪴', name:'Plant',       sub:'Natural accent',   size:'small'  },
+  { id:'shelf',   icon:'📚', name:'Bookshelf',   sub:'Storage & display',size:'large'  },
+  { id:'mirror',  icon:'🖼️', name:'Mirror',      sub:'Wall accent',      size:'medium' },
+  { id:'rug',     icon:'🟫', name:'Area Rug',    sub:'Floor covering',   size:'large'  },
+  { id:'cushion', icon:'🟪', name:'Cushions',    sub:'Decorative',       size:'small'  },
+  { id:'clock',   icon:'🕐', name:'Wall Clock',  sub:'Statement piece',  size:'small'  },
+];
+
+const STYLES = ['Modern','Minimalist','Japandi','Scandinavian','Art Deco','Bohemian','Industrial','Classic','Coastal','Maximalist'];
+const RUG_COLORS = ['rgba(180,120,80,0.6)','rgba(100,130,110,0.5)','rgba(120,100,160,0.5)','rgba(180,160,100,0.5)','rgba(140,80,80,0.5)'];
+
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let state = {
+  wallColor: '#D4C5B0',
+  floor: 0,
+  placedItems: [],
+  selectedStyle: null,
+  dragItem: null,
+  apiKey: '',
+};
+let pieceIdCounter = 0;
+
+// ── INIT ──────────────────────────────────────────────────────────────────────
+function init() {
+  renderWallColors();
+  renderFloorSwatches();
+  renderFurniture();
+  renderStyles();
+  setupDragDrop();
+
+}
+
+function renderWallColors() {
+  const grid = document.getElementById('wallColors');
+  grid.innerHTML = WALL_COLORS.map((c,i) => `
+    <div class="color-swatch ${i===0?'active':''}"
+      style="background:${c.hex}"
+      data-name="${c.name}"
+      data-hex="${c.hex}"
+      onclick="setWallColor('${c.hex}', this)"
+      title="${c.name}">
+    </div>`).join('');
+}
+
+function renderFloorSwatches() {
+  const grid = document.getElementById('floorSwatches');
+  grid.innerHTML = FLOOR_TYPES.map((f,i) => `
+    <div class="floor-swatch ${i===0?'active':''}"
+      style="background:${f.color}; background-image:${f.pattern}"
+      onclick="setFloor(${i}, this)">
+      <span>${f.name}</span>
+    </div>`).join('');
+}
+
+function renderFurniture() {
+  const list = document.getElementById('furnitureList');
+  list.innerHTML = FURNITURE.map(f => `
+    <div class="furniture-item" id="fi-${f.id}" draggable="true"
+      data-id="${f.id}" data-icon="${f.icon}">
+      <span class="furn-icon">${f.icon}</span>
+      <div class="furn-info">
+        <div class="furn-name">${f.name}</div>
+        <div class="furn-sub">${f.sub}</div>
+      </div>
+      <span class="furn-action">DRAG →</span>
+    </div>`).join('');
+
+  document.querySelectorAll('.furniture-item').forEach(el => {
+    el.addEventListener('dragstart', e => {
+      state.dragItem = { id: el.dataset.id, icon: el.dataset.icon };
+      el.classList.add('dragging-source');
+      e.dataTransfer.effectAllowed = 'copy';
+    });
+    el.addEventListener('dragend', () => el.classList.remove('dragging-source'));
+  });
+}
+
+function renderStyles() {
+  const wrap = document.getElementById('styleChips');
+  wrap.innerHTML = STYLES.map(s => `
+    <span class="style-chip" onclick="selectStyle('${s}', this)">${s}</span>`).join('');
+}
+
+// ── ROOM ACTIONS ──────────────────────────────────────────────────────────────
+function setWallColor(hex, el) {
+  state.wallColor = hex;
+  document.getElementById('roomBack').style.background = hex;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  showToast(`Wall color → ${el.dataset.name}`);
+}
+
+function setFloor(idx, el) {
+  state.floor = idx;
+  const f = FLOOR_TYPES[idx];
+  const floor = document.getElementById('roomFloor');
+  floor.style.background = f.color;
+  document.querySelectorAll('.floor-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  showToast(`Floor → ${f.name}`);
+}
+
+function selectStyle(style, el) {
+  state.selectedStyle = style;
+  document.querySelectorAll('.style-chip').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('activeStyle').textContent = style;
+  document.getElementById('aiPrompt').value = `${style} style interior design`;
+  showToast(`Style: ${style}`);
+}
+
+// ── DRAG & DROP ───────────────────────────────────────────────────────────────
+function setupDragDrop() {
+  const dz = document.getElementById('dropZone');
+  dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag-over'); });
+  dz.addEventListener('dragleave', () => dz.classList.remove('drag-over'));
+  dz.addEventListener('drop', e => {
+    e.preventDefault(); dz.classList.remove('drag-over');
+    if (!state.dragItem) return;
+    const rect = dz.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    placeFurniture(state.dragItem.id, state.dragItem.icon, x, y);
+    state.dragItem = null;
+  });
+}
+
+function placeFurniture(id, icon, xPct, yPct) {
+  if (id === 'rug') {
+    const rug = document.getElementById('roomRug');
+    const color = RUG_COLORS[Math.floor(Math.random() * RUG_COLORS.length)];
+    rug.style.background = color;
+    rug.style.boxShadow = `0 4px 20px rgba(0,0,0,0.3)`;
+    showToast('Rug placed ✦');
+    return;
+  }
+
+  const pieceId = `piece-${pieceIdCounter++}`;
+  const piece = document.createElement('div');
+  piece.className = 'placed-piece';
+  piece.id = pieceId;
+  piece.style.left = Math.min(Math.max(xPct, 5), 85) + '%';
+  piece.style.top = Math.min(Math.max(yPct, 5), 80) + '%';
+  piece.style.transform = 'translate(-50%, -50%)';
+  piece.innerHTML = `${icon}<button class="remove-btn" onclick="removePiece('${pieceId}')">✕</button>`;
+
+  // Make placed piece draggable within room
+  let isDragging = false, startX, startY, startLeft, startTop;
+  piece.addEventListener('mousedown', e => {
+    if (e.target.classList.contains('remove-btn')) return;
+    isDragging = true;
+    startX = e.clientX; startY = e.clientY;
+    const r = piece.getBoundingClientRect();
+    const rr = document.getElementById('room').getBoundingClientRect();
+    startLeft = ((r.left + r.width/2 - rr.left) / rr.width) * 100;
+    startTop = ((r.top + r.height/2 - rr.top) / rr.height) * 100;
+    piece.style.zIndex = 50;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!isDragging) return;
+    const rr = document.getElementById('room').getBoundingClientRect();
+    const dx = ((e.clientX - startX) / rr.width) * 100;
+    const dy = ((e.clientY - startY) / rr.height) * 100;
+    piece.style.left = Math.min(Math.max(startLeft + dx, 3), 92) + '%';
+    piece.style.top = Math.min(Math.max(startTop + dy, 5), 88) + '%';
+  });
+  document.addEventListener('mouseup', () => { if(isDragging) { isDragging=false; piece.style.zIndex=10; } });
+
+  document.getElementById('dropZone').appendChild(piece);
+  state.placedItems.push(id);
+
+  const fi = document.getElementById(`fi-${id}`);
+  if (fi) fi.classList.add('placed');
+  updatePieceCount();
+  showToast(`${FURNITURE.find(f=>f.id===id)?.name} placed ✦`);
+}
+
+function removePiece(pieceId) {
+  const el = document.getElementById(pieceId);
+  if (el) { el.style.animation = 'none'; el.style.opacity = '0'; el.style.transform = 'translate(-50%,-50%) scale(0.5)'; el.style.transition = 'all 0.25s'; setTimeout(() => el.remove(), 250); }
+  state.placedItems.pop();
+  updatePieceCount();
+}
+
+function updatePieceCount() {
+  document.getElementById('pieceCount').textContent = document.querySelectorAll('.placed-piece').length;
+}
+
+// ── AI SUGGESTIONS ────────────────────────────────────────────────────────────
+async function generateSuggestions() {
+  const key = state.apiKey;
+  if (!key || key === 'YOUR_API_KEY_HERE') { showKeyModal(); return; }
+
+  const prompt = document.getElementById('aiPrompt').value.trim();
+  if (!prompt) { showError('Please enter a design prompt first.'); return; }
+
+  const btn = document.getElementById('generateBtn');
+  btn.disabled = true;
+  btn.textContent = '⟳ Generating…';
+
+  const results = document.getElementById('aiResults');
+  results.innerHTML = `<div class="thinking"><span></span><span></span><span></span><span class="thinking-label">AI designing…</span></div>`;
+
+  const systemPrompt = `You are an expert interior designer AI. When given a design brief, you generate exactly 5 distinct interior design concepts as a JSON array. Each concept should be creative, specific, and actionable.
+
+Each object in the array must have EXACTLY these fields:
+- "title": string (2-4 words, evocative name)
+- "description": string (2-3 sentences describing the look and feel)
+- "wallColor": string (one of: Linen, Sand, Stone, Slate, Cream, Blush, Taupe, Pebble, Sage, Mint, Fern, Forest, Sky, Steel, Dusk, Wheat, Camel, Hazel, Rose, Coral)
+- "floor": string (one of: Oak, Walnut, Birch, Marble, Slate, Cement)
+- "keyFurniture": array of 2-3 strings from this list ONLY: Sofa, Armchair, Coffee Table, Floor Lamp, Plant, Bookshelf, Mirror, Area Rug, Cushions, Wall Clock
+- "mood": string (1-2 words)
+
+Return ONLY valid JSON array with no markdown, no backticks, no explanation.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1500,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: `Design brief: ${prompt}\nCurrent selected style: ${state.selectedStyle || 'not specified'}\nGenerate 5 interior design concepts.` }]
+      })
+    });
+
+    if (!response.ok) {
+      const err = await response.json();
+      throw new Error(err.error?.message || `API error ${response.status}`);
+    }
+
+    const data = await response.json();
+    let text = data.content.map(b => b.text || '').join('');
+    text = text.replace(/```json|```/g, '').trim();
+
+    let concepts;
+    try { concepts = JSON.parse(text); }
+    catch { throw new Error('Could not parse AI response. Please try again.'); }
+
+    renderConcepts(concepts);
+    showToast('5 concepts generated ✦');
+
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✦ Generate AI Suggestions';
+  }
+}
+
+function renderConcepts(concepts) {
+  const results = document.getElementById('aiResults');
+  results.innerHTML = `<div class="results-status"><span>✦</span> ${concepts.length} Concepts Generated</div>` +
+    concepts.map((c, i) => {
+      const wallHex = WALL_COLORS.find(w => w.name.toLowerCase() === c.wallColor?.toLowerCase())?.hex || '#D4C5B0';
+      const floorIdx = FLOOR_TYPES.findIndex(f => f.name.toLowerCase() === c.floor?.toLowerCase());
+      const tags = [
+        `<span class="ai-tag wall">Wall: ${c.wallColor || '—'}</span>`,
+        `<span class="ai-tag furn">Floor: ${c.floor || '—'}</span>`,
+        `<span class="ai-tag mood">Mood: ${c.mood || '—'}</span>`,
+      ].join('');
+      const furniture = (c.keyFurniture || []).join(' · ');
+      return `
+      <div class="ai-card" onclick="applyConceptInline(${i})" data-concept='${JSON.stringify(c).replace(/'/g,"&#39;")}'>
+        <div class="ai-card-header">
+          <div>
+            <div class="ai-card-title">${c.title || 'Concept'}</div>
+            <div class="ai-card-num">CONCEPT 0${i+1}</div>
+          </div>
+          <div style="width:32px;height:32px;border-radius:50%;background:${wallHex};border:2px solid rgba(201,168,76,0.4);flex-shrink:0"></div>
+        </div>
+        <div class="ai-card-desc">${c.description || ''}</div>
+        ${furniture ? `<div style="font-size:9px;color:var(--sage);margin-top:8px;letter-spacing:1px">✦ ${furniture}</div>` : ''}
+        <div class="ai-card-tags">${tags}</div>
+        <button class="apply-btn" onclick="event.stopPropagation();applyConcept(${i})">Apply to Room →</button>
+      </div>`;
+    }).join('');
+
+  // store concepts globally for apply
+  window._concepts = concepts;
+}
+
+function applyConcept(idx) {
+  const c = window._concepts[idx];
+  if (!c) return;
+
+  // Apply wall color
+  const wallMatch = WALL_COLORS.find(w => w.name.toLowerCase() === c.wallColor?.toLowerCase());
+  if (wallMatch) {
+    document.getElementById('roomBack').style.background = wallMatch.hex;
+    state.wallColor = wallMatch.hex;
+    document.querySelectorAll('.color-swatch').forEach(s => { s.classList.remove('active'); if(s.dataset.hex===wallMatch.hex) s.classList.add('active'); });
+  }
+
+  // Apply floor
+  const floorIdx = FLOOR_TYPES.findIndex(f => f.name.toLowerCase() === c.floor?.toLowerCase());
+  if (floorIdx >= 0) {
+    const fl = FLOOR_TYPES[floorIdx];
+    document.getElementById('roomFloor').style.background = fl.color;
+    document.querySelectorAll('.floor-swatch').forEach((s,i) => { s.classList.toggle('active', i===floorIdx); });
+  }
+
+  // Clear existing placed items and add suggested ones
+  document.querySelectorAll('.placed-piece').forEach(p => p.remove());
+  state.placedItems = [];
+
+  const positions = [[30,60],[60,55],[50,75],[20,70],[75,65]];
+  (c.keyFurniture || []).slice(0,3).forEach((fname, i) => {
+    const fItem = FURNITURE.find(f => f.name.toLowerCase() === fname.toLowerCase());
+    if (fItem) {
+      const pos = positions[i];
+      setTimeout(() => placeFurniture(fItem.id, fItem.icon, pos[0], pos[1]), i * 200);
+    }
+  });
+
+  showToast(`Applied: ${c.title} ✦`);
+}
+
+function applyConceptInline(idx) { /* click on card handled by button */ }
+
+// ── UTILS ─────────────────────────────────────────────────────────────────────
+function setPrompt(text) {
+  document.getElementById('aiPrompt').value = text;
+  document.getElementById('aiPrompt').focus();
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+function showError(msg) {
+  const results = document.getElementById('aiResults');
+  results.innerHTML = `<div class="error-msg">⚠ ${msg}</div>`;
+}
+
+function showKeyModal() {
+  document.getElementById('keyModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('modalKeyInput').focus(), 100);
+}
+function saveKey() {
+  const k = document.getElementById('modalKeyInput').value.trim();
+  if (!k) return;
+  state.apiKey = k;
+  document.getElementById('keyModal').style.display = 'none';
+  generateSuggestions();
+}
+
+// ── START ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
